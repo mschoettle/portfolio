@@ -116,10 +116,11 @@ public class QuestradePDFExtractor extends AbstractPDFExtractor
                 // @formatter:off
                 // Matches lines like:
                 // ETF UNIT  WE ACTED AS AGENT 50.0000 40.930 (2,046.50) - (2,046.50) - - - -
+                // UNITS  WE ACTED AS AGENT 100 25.920 (2,592.00) - (2,592.00) - - - -
                 // @formatter:on
                 section -> section
                     .attributes("shares", "gross", "amount")
-                    .match("^.+ UNIT\\s+WE ACTED AS AGENT (?<shares>[\\d\\.,]+) (?<price>[\\d\\.,]+) \\((?<gross>[\\d,\\.\\-]+)\\) - \\((?<amount>[\\d,\\.\\-]+)\\) .*$")
+                    .match("^.*\\s?UNITS?\\s+WE ACTED AS AGENT (?<shares>[\\d\\.,]+) (?<price>[\\d\\.,]+) \\((?<gross>[\\d,\\.\\-]+)\\) - \\((?<amount>[\\d,\\.\\-]+)\\) .*$")
                     .assign((t, v) -> {
                         t.setShares(asShares(v.get("shares"), "en", "CA"));
                         t.setAmount(asAmount(v.get("amount")));
@@ -128,11 +129,12 @@ public class QuestradePDFExtractor extends AbstractPDFExtractor
                 // @formatter:off
                 // Matches lines like:
                 // UNIT|WE ACTED AS AGENT 50.0000 40.930 (2,046.50) (0.10) (2,046.60) - - - -
+                // UNITS  WE ACTED AS AGENT 76 25.960 (1,972.96) (0.27) (1,973.23) - - - -
                 // @formatter:on
                 section -> section
                     .attributes("shares", "gross", "fee", "amount")
                     .documentContext("currency")
-                    .match("^UNIT\\|WE ACTED AS AGENT (?<shares>[\\d\\.,]+) (?<price>[\\d\\.,]+) \\((?<gross>[\\d,\\.\\-]+)\\) \\((?<fee>[\\d,\\.\\-]+)\\) \\((?<amount>[\\d,\\.\\-]+)\\) .*$")
+                    .match("^UNITS?(\\||  )WE ACTED AS AGENT (?<shares>[\\d\\.,]+) (?<price>[\\d\\.,]+) \\((?<gross>[\\d,\\.\\-]+)\\) \\((?<fee>[\\d,\\.\\-]+)\\) \\((?<amount>[\\d,\\.\\-]+)\\) .*$")
                     .assign((t, v) -> {
                         t.setShares(asShares(v.get("shares"), "en", "CA"));
                         t.setAmount(asAmount(v.get("amount")));
@@ -154,7 +156,7 @@ public class QuestradePDFExtractor extends AbstractPDFExtractor
         this.addDocumentTyp(type);
 
         var pdfTransaction = new Transaction<AccountTransaction>();
-        var firstRelevantLine = new Block(".* UNIT DIST .*");
+        var firstRelevantLine = new Block(".* UNITS? DIST .*");
         type.addBlock(firstRelevantLine);
         firstRelevantLine.set(pdfTransaction);
 
@@ -171,8 +173,9 @@ public class QuestradePDFExtractor extends AbstractPDFExtractor
             // @formatter:off
             // Matches lines like:
             // 01-07-2025 01-07-2025    .VEQT UNIT DIST      ON      29 SHS REC 12/30/24 PAY - - - - 20.69 - - - -
+            // 09-29-2023 09-29-2023    .XEQT UNITS DIST      ON     95 SHS REC 09/26/23 - - - - 23.55 - - - -
             // @formatter:on
-            .match("^(?<date>\\d{2}-\\d{2}-\\d{4}) \\d{2}-\\d{2}-\\d{4}\\s+\\.(?<tickerSymbol>\\S+) UNIT DIST\\s+ON\\s+(?<shares>[\\d,\\.]+) SHS (?<recNote>REC \\d{2}/\\d{2}/\\d{2}) PAY [\\s\\-]+(?<amount>[\\d,\\.\\-]+).*$")
+            .match("^(?<date>\\d{2}-\\d{2}-\\d{4}) \\d{2}-\\d{2}-\\d{4}\\s+\\.(?<tickerSymbol>\\S+) UNITS? DIST\\s+ON\\s+(?<shares>[\\d,\\.]+) SHS (?<recNote>REC \\d{2}/\\d{2}/\\d{2})( PAY)? (\\- ){4}(?<amount>[\\d,\\.]+).*$")
             .assign((t, v) -> {
                 v.put("tickerSymbol", asTickerSymbol(v.get("tickerSymbol")));
 

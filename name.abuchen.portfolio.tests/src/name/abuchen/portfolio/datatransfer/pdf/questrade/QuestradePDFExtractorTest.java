@@ -150,6 +150,86 @@ public class QuestradePDFExtractorTest
     }
 
     @Test
+    public void testBuy03()
+    {
+        var extractor = new QuestradePDFExtractor(new Client());
+
+        List<Exception> errors = new ArrayList<>();
+
+        var results = extractor.extract(PDFInputFile.loadTestCase(getClass(), "Buy03.txt"), errors);
+
+        assertThat(errors, empty());
+        assertThat(countSecurities(results), is(1L));
+        assertThat(countBuySell(results), is(1L));
+        assertThat(countAccountTransactions(results), is(0L));
+        assertThat(countAccountTransfers(results), is(0L));
+        assertThat(countItemsWithFailureMessage(results), is(0L));
+        assertThat(results.size(), is(2));
+        new AssertImportActions().check(results, "CAD");
+        
+        // check security
+        assertThat(results, hasItem(security(
+            hasIsin(null),
+            hasWkn(null),
+            hasTicker("XEQT.TO"),
+            hasName("ISHARES CORE EQUITY ETF  PORTFOLIO"),
+            hasCurrencyCode("CAD"))
+        ));
+
+        // check buy sell transaction
+        assertThat(results, hasItem(purchase(
+            hasDate("2023-09-22"),
+            hasShares(76.0),
+            hasSource("Buy03.txt"),
+            hasNote(null),
+            hasAmount("CAD", 1973.96),
+            hasGrossValue("CAD", 1973.96),
+            hasTaxes("CAD", 0.00),
+            hasFees("CAD", 0.00)
+        )));
+    }
+
+    @Test
+    public void testBuy04()
+    {
+        var extractor = new QuestradePDFExtractor(new Client());
+
+        List<Exception> errors = new ArrayList<>();
+
+        var results = extractor.extract(PDFInputFile.loadTestCase(getClass(), "Buy04.txt"), errors);
+
+        assertThat(errors, empty());
+        assertThat(countSecurities(results), is(1L));
+        assertThat(countBuySell(results), is(1L));
+        assertThat(countAccountTransactions(results), is(0L));
+        assertThat(countAccountTransfers(results), is(0L));
+        assertThat(countItemsWithFailureMessage(results), is(0L));
+        assertThat(results.size(), is(2));
+        new AssertImportActions().check(results, "CAD");
+        
+        // check security
+        assertThat(results, hasItem(security(
+            hasIsin(null),
+            hasWkn(null),
+            hasTicker("XEQT.TO"),
+            hasName("ISHARES CORE EQUITY ETF  PORTFOLIO"),
+            hasCurrencyCode("CAD"))
+        ));
+
+        // check buy sell transaction
+        assertThat(results, hasItem(purchase(
+            hasDate("2023-09-22"),
+            hasShares(76.0),
+            hasSource("Buy04.txt"),
+            hasNote(null),
+            hasAmount("CAD", 1973.23),
+            hasGrossValue("CAD", 1972.96),
+            hasTaxes("CAD", 0.00),
+            hasFees("CAD", 0.27)
+        )));
+    }
+
+    @Test
     public void testDividend01()
     {
         var extractor = new QuestradePDFExtractor(new Client());
@@ -184,6 +264,48 @@ public class QuestradePDFExtractorTest
             hasNote("REC 12/30/24"),
             hasAmount("CAD", 20.69),
             hasGrossValue("CAD", 20.69),
+            hasTaxes("CAD", 0.00),
+            hasFees("CAD", 0.00)
+        )));
+    }
+
+    @Test
+    public void testDividend02()
+    {
+        var extractor = new QuestradePDFExtractor(new Client());
+
+        List<Exception> errors = new ArrayList<>();
+
+        var results = extractor.extract(PDFInputFile.loadTestCase(getClass(), "Dividend02.txt"), errors);
+
+        assertThat(errors, empty());
+        assertThat(countSecurities(results), is(1L));
+        assertThat(countBuySell(results), is(0L));
+        assertThat(countAccountTransactions(results), is(1L));
+        assertThat(countAccountTransfers(results), is(0L));
+        assertThat(countItemsWithFailureMessage(results), is(0L));
+        assertThat(results.size(), is(2));
+        new AssertImportActions().check(results, "CAD");
+
+        // 09-29-2023 09-29-2023    .XEQT UNITS DIST      ON     595 SHS REC 09/26/23 - - - - 53.55 - - - -
+
+        // check security
+        assertThat(results, hasItem(security(
+            hasIsin(null),
+            hasWkn(null),
+            hasTicker("XEQT.TO"),
+            hasName(null),
+            hasCurrencyCode("CAD"))
+        ));
+
+        // check dividend transaction
+        assertThat(results, hasItem(dividend(
+            hasDate("2023-09-29"),
+            hasShares(95.0),
+            hasSource("Dividend02.txt"),
+            hasNote("REC 09/26/23"),
+            hasAmount("CAD", 23.55),
+            hasGrossValue("CAD", 23.55),
             hasTaxes("CAD", 0.00),
             hasFees("CAD", 0.00)
         )));
