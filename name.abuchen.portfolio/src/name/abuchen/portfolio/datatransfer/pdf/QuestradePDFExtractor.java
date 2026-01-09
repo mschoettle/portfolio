@@ -197,7 +197,7 @@ public class QuestradePDFExtractor extends AbstractPDFExtractor
         this.addDocumentTyp(type);
 
         var pdfTransaction = new Transaction<AccountTransaction>();
-        var firstRelevantLine = new Block(".* UNITS? DIST .*");
+        var firstRelevantLine = new Block(".* UNITS?( |\\|)DIST .*");
         type.addBlock(firstRelevantLine);
         firstRelevantLine.set(pdfTransaction);
 
@@ -215,8 +215,9 @@ public class QuestradePDFExtractor extends AbstractPDFExtractor
             // Matches lines like:
             // 01-07-2025 01-07-2025    .VEQT UNIT DIST      ON      29 SHS REC 12/30/24 PAY - - - - 20.69 - - - -
             // 09-29-2023 09-29-2023    .XEQT UNITS DIST      ON     95 SHS REC 09/26/23 - - - - 23.55 - - - -
+            // 03-31-2023 03-31-2023    .XEQT UNITS|DIST      ON     19 SHS|REC 03/23/23 - - - - 1.67 - - - -
             // @formatter:on
-            .match("^(?<date>\\d{2}-\\d{2}-\\d{4}) \\d{2}-\\d{2}-\\d{4}\\s+\\.(?<tickerSymbol>\\S+) UNITS? DIST\\s+ON\\s+(?<shares>[\\d,\\.]+) SHS (?<recNote>REC \\d{2}/\\d{2}/\\d{2})( PAY)? (\\- ){4}(?<amount>[\\d,\\.]+).*$")
+            .match("^(?<date>\\d{2}-\\d{2}-\\d{4}) \\d{2}-\\d{2}-\\d{4}\\s+\\.(?<tickerSymbol>\\S+) UNITS?( |\\|)DIST\\s+ON\\s+(?<shares>[\\d,\\.]+) SHS( |\\|)(?<recNote>REC \\d{2}/\\d{2}/\\d{2})( PAY)? (\\- ){4}(?<amount>[\\d,\\.]+).*$")
             .assign((t, v) -> {
                 v.put("tickerSymbol", asTickerSymbol(v.get("tickerSymbol")));
 

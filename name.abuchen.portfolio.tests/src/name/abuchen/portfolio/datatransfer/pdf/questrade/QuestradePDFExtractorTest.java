@@ -327,8 +327,6 @@ public class QuestradePDFExtractorTest
         assertThat(results.size(), is(2));
         new AssertImportActions().check(results, "CAD");
 
-        // 09-29-2023 09-29-2023    .XEQT UNITS DIST      ON     595 SHS REC 09/26/23 - - - - 53.55 - - - -
-
         // check security
         assertThat(results, hasItem(security(
             hasIsin(null),
@@ -346,6 +344,46 @@ public class QuestradePDFExtractorTest
             hasNote("REC 09/26/23"),
             hasAmount("CAD", 23.55),
             hasGrossValue("CAD", 23.55),
+            hasTaxes("CAD", 0.00),
+            hasFees("CAD", 0.00)
+        )));
+    }
+
+    @Test
+    public void testDividend03()
+    {
+        var extractor = new QuestradePDFExtractor(new Client());
+
+        List<Exception> errors = new ArrayList<>();
+
+        var results = extractor.extract(PDFInputFile.loadTestCase(getClass(), "Dividend03.txt"), errors);
+
+        assertThat(errors, empty());
+        assertThat(countSecurities(results), is(1L));
+        assertThat(countBuySell(results), is(0L));
+        assertThat(countAccountTransactions(results), is(1L));
+        assertThat(countAccountTransfers(results), is(0L));
+        assertThat(countItemsWithFailureMessage(results), is(0L));
+        assertThat(results.size(), is(2));
+        new AssertImportActions().check(results, "CAD");
+
+        // check security
+        assertThat(results, hasItem(security(
+            hasIsin(null),
+            hasWkn(null),
+            hasTicker("XEQT.TO"),
+            hasName(null),
+            hasCurrencyCode("CAD"))
+        ));
+
+        // check dividend transaction
+        assertThat(results, hasItem(dividend(
+            hasDate("2023-03-31"),
+            hasShares(19.0),
+            hasSource("Dividend03.txt"),
+            hasNote("REC 03/23/23"),
+            hasAmount("CAD", 1.67),
+            hasGrossValue("CAD", 1.67),
             hasTaxes("CAD", 0.00),
             hasFees("CAD", 0.00)
         )));
