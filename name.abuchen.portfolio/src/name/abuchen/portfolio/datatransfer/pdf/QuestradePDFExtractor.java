@@ -116,6 +116,8 @@ public class QuestradePDFExtractor extends AbstractPDFExtractor
                     .match("^.* Buy \\.(?<tickerSymbol>\\S+) UNITS\\|WE ACTED AS AGENT\\|AVG PRICE - ASK .*$")
                     .documentContext("currency")
                     .assign((t, v) -> {
+                        // The security name cannot be null
+                        v.put("name", "");
                         v.put("tickerSymbol", asTickerSymbol(v.get("tickerSymbol")));
 
                         t.setSecurity(getOrCreateSecurity(v));

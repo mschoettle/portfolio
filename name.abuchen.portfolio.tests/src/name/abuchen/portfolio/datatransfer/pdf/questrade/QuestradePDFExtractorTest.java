@@ -252,7 +252,7 @@ public class QuestradePDFExtractorTest
             hasIsin(null),
             hasWkn(null),
             hasTicker("XEQT.TO"),
-            hasName(null),
+            hasName(""),
             hasCurrencyCode("CAD"))
         ));
 
