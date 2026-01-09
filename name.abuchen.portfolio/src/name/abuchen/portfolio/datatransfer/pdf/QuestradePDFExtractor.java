@@ -97,19 +97,48 @@ public class QuestradePDFExtractor extends AbstractPDFExtractor
             // @formatter:off
             // Matches lines like:
             // 04-10-2025 04-11-2025 Buy .VEQT VANGUARD ALL-EQUITY ETF  PORTFOLIO
-            // 01-16-2023 01-18-2023 Buy .VEQT VANGUARD ALL-EQUITY ETF|PORTFOLIO ETF 
+            // 01-16-2023 01-18-2023 Buy .VEQT VANGUARD ALL-EQUITY ETF|PORTFOLIO ETF
+            // 01-17-2023 01-19-2023 Buy .XEQT UNITS|WE ACTED AS AGENT|AVG PRICE - ASK 19 25.320 (481.08) - (481.08) - - - -
             // @formatter:on
-            .section("date", "tickerSymbol", "name")
-            .documentContext("currency")
-            .match("^(?<date>[\\d]{2}\\-[\\d]{2}\\-[\\d]{4}) [\\d]{2}\\-[\\d]{2}\\-[\\d]{4} Buy \\.(?<tickerSymbol>\\S+)\\s+(?<name>.*?)$")
+            .section("date")
+            .match("^(?<date>[\\d]{2}\\-[\\d]{2}\\-[\\d]{4}) [\\d]{2}\\-[\\d]{2}\\-[\\d]{4} Buy .*")
             .assign((t, v) -> {
-                v.put("name", v.get("name").trim());
-                v.put("tickerSymbol", asTickerSymbol(v.get("tickerSymbol")));
-
                 t.setDate(asDate(v.get("date"), Locale.US));
-                t.setSecurity(getOrCreateSecurity(v));
-                t.setCurrencyCode(v.get("currency"));
             })
+
+            .oneOf(
+                // @formatter:off
+                // Matches lines like:
+                // 01-17-2023 01-19-2023 Buy .XEQT UNITS|WE ACTED AS AGENT|AVG PRICE - ASK 19 25.320 (481.08) - (481.08) - - - -
+                // @formatter:on
+                section -> section
+                    .attributes( "tickerSymbol")
+                    .match("^.* Buy \\.(?<tickerSymbol>\\S+) UNITS\\|WE ACTED AS AGENT\\|AVG PRICE - ASK .*$")
+                    .documentContext("currency")
+                    .assign((t, v) -> {
+                        v.put("tickerSymbol", asTickerSymbol(v.get("tickerSymbol")));
+
+                        t.setSecurity(getOrCreateSecurity(v));
+                        t.setCurrencyCode(v.get("currency"));
+                    }),
+
+                // @formatter:off
+                // Matches lines like:
+                // 04-10-2025 04-11-2025 Buy .VEQT VANGUARD ALL-EQUITY ETF  PORTFOLIO
+                // 01-16-2023 01-18-2023 Buy .VEQT VANGUARD ALL-EQUITY ETF|PORTFOLIO ETF
+                // @formatter:on
+                section -> section
+                    .attributes( "tickerSymbol", "name")
+                    .match("^.* Buy \\.(?<tickerSymbol>\\S+) (?<name>.*?)$")
+                    .documentContext("currency")
+                    .assign((t, v) -> {
+                        v.put("name", v.get("name").trim());
+                        v.put("tickerSymbol", asTickerSymbol(v.get("tickerSymbol")));
+
+                        t.setSecurity(getOrCreateSecurity(v));
+                        t.setCurrencyCode(v.get("currency"));
+                    })
+            )
 
             .oneOf(
 
@@ -140,6 +169,18 @@ public class QuestradePDFExtractor extends AbstractPDFExtractor
                         t.setAmount(asAmount(v.get("amount")));
 
                         processFeeEntries(t, v, type);
+                    }),
+
+                // @formatter:off
+                // Matches lines like:
+                // 01-17-2023 01-19-2023 Buy .XEQT UNITS|WE ACTED AS AGENT|AVG PRICE - ASK 19 25.320 (481.08) - (481.08) - - - -
+                // @formatter:on
+                section -> section
+                    .attributes("shares", "gross", "amount")
+                    .match("^.+ UNITS\\|WE ACTED AS AGENT\\|AVG PRICE - ASK (?<shares>[\\d\\.,]+) (?<price>[\\d\\.,]+) \\((?<gross>[\\d,\\.\\-]+)\\) - \\((?<amount>[\\d,\\.\\-]+)\\) .*$")
+                    .assign((t, v) -> {
+                        t.setShares(asShares(v.get("shares"), "en", "CA"));
+                        t.setAmount(asAmount(v.get("amount")));
                     })
             )
 

@@ -230,6 +230,46 @@ public class QuestradePDFExtractorTest
     }
 
     @Test
+    public void testBuy05()
+    {
+        var extractor = new QuestradePDFExtractor(new Client());
+
+        List<Exception> errors = new ArrayList<>();
+
+        var results = extractor.extract(PDFInputFile.loadTestCase(getClass(), "Buy05.txt"), errors);
+
+        assertThat(errors, empty());
+        assertThat(countSecurities(results), is(1L));
+        assertThat(countBuySell(results), is(1L));
+        assertThat(countAccountTransactions(results), is(0L));
+        assertThat(countAccountTransfers(results), is(0L));
+        assertThat(countItemsWithFailureMessage(results), is(0L));
+        assertThat(results.size(), is(2));
+        new AssertImportActions().check(results, "CAD");
+        
+        // check security
+        assertThat(results, hasItem(security(
+            hasIsin(null),
+            hasWkn(null),
+            hasTicker("XEQT.TO"),
+            hasName(null),
+            hasCurrencyCode("CAD"))
+        ));
+
+        // check buy sell transaction
+        assertThat(results, hasItem(purchase(
+            hasDate("2023-01-17"),
+            hasShares(19.0),
+            hasSource("Buy05.txt"),
+            hasNote(null),
+            hasAmount("CAD", 481.08),
+            hasGrossValue("CAD", 481.08),
+            hasTaxes("CAD", 0.00),
+            hasFees("CAD", 0.00)
+        )));
+    }
+
+    @Test
     public void testDividend01()
     {
         var extractor = new QuestradePDFExtractor(new Client());
