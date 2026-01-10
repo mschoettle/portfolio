@@ -148,10 +148,11 @@ public class QuestradePDFExtractor extends AbstractPDFExtractor
                 // Matches lines like:
                 // ETF UNIT  WE ACTED AS AGENT 50.0000 40.930 (2,046.50) - (2,046.50) - - - -
                 // UNITS  WE ACTED AS AGENT 100 25.920 (2,592.00) - (2,592.00) - - - -
+                // UNITS|WE ACTED AS AGENT 30 25.210 (756.30) - (756.40) - - - -
                 // @formatter:on
                 section -> section
                     .attributes("shares", "gross", "amount")
-                    .match("^.*\\s?UNITS?\\s+WE ACTED AS AGENT (?<shares>[\\d\\.,]+) (?<price>[\\d\\.,]+) \\((?<gross>[\\d,\\.\\-]+)\\) - \\((?<amount>[\\d,\\.\\-]+)\\) .*$")
+                    .match("^.*\\s?UNITS?(\\||\\s+)WE ACTED AS AGENT (?<shares>[\\d\\.,]+) (?<price>[\\d\\.,]+) \\((?<gross>[\\d,\\.\\-]+)\\) - \\((?<amount>[\\d,\\.\\-]+)\\) .*$")
                     .assign((t, v) -> {
                         t.setShares(asShares(v.get("shares"), "en", "CA"));
                         t.setAmount(asAmount(v.get("amount")));

@@ -34,8 +34,8 @@ import java.util.List;
 import org.junit.Test;
 
 import name.abuchen.portfolio.datatransfer.actions.AssertImportActions;
-import name.abuchen.portfolio.datatransfer.pdf.QuestradePDFExtractor;
 import name.abuchen.portfolio.datatransfer.pdf.PDFInputFile;
+import name.abuchen.portfolio.datatransfer.pdf.QuestradePDFExtractor;
 import name.abuchen.portfolio.model.Client;
 
 @SuppressWarnings("nls")
@@ -264,6 +264,46 @@ public class QuestradePDFExtractorTest
             hasNote(null),
             hasAmount("CAD", 481.08),
             hasGrossValue("CAD", 481.08),
+            hasTaxes("CAD", 0.00),
+            hasFees("CAD", 0.00)
+        )));
+    }
+
+    @Test
+    public void testBuy06()
+    {
+        var extractor = new QuestradePDFExtractor(new Client());
+
+        List<Exception> errors = new ArrayList<>();
+
+        var results = extractor.extract(PDFInputFile.loadTestCase(getClass(), "Buy06.txt"), errors);
+
+        assertThat(errors, empty());
+        assertThat(countSecurities(results), is(1L));
+        assertThat(countBuySell(results), is(1L));
+        assertThat(countAccountTransactions(results), is(0L));
+        assertThat(countAccountTransfers(results), is(0L));
+        assertThat(countItemsWithFailureMessage(results), is(0L));
+        assertThat(results.size(), is(2));
+        new AssertImportActions().check(results, "CAD");
+        
+        // check security
+        assertThat(results, hasItem(security(
+            hasIsin(null),
+            hasWkn(null),
+            hasTicker("XEQT.TO"),
+            hasName("ISHARES CORE EQUITY ETF|PORTFOLIO"),
+            hasCurrencyCode("CAD"))
+        ));
+
+        // check buy sell transaction
+        assertThat(results, hasItem(purchase(
+            hasDate("2023-02-24"),
+            hasShares(30.0),
+            hasSource("Buy06.txt"),
+            hasNote(null),
+            hasAmount("CAD", 756.40),
+            hasGrossValue("CAD", 756.40),
             hasTaxes("CAD", 0.00),
             hasFees("CAD", 0.00)
         )));
