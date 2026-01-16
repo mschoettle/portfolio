@@ -17,6 +17,7 @@ import static name.abuchen.portfolio.datatransfer.ExtractorMatchers.hasTicker;
 import static name.abuchen.portfolio.datatransfer.ExtractorMatchers.hasWkn;
 import static name.abuchen.portfolio.datatransfer.ExtractorMatchers.purchase;
 import static name.abuchen.portfolio.datatransfer.ExtractorMatchers.security;
+import static name.abuchen.portfolio.datatransfer.ExtractorMatchers.withFailureMessage;
 import static name.abuchen.portfolio.datatransfer.ExtractorTestUtilities.countAccountTransactions;
 import static name.abuchen.portfolio.datatransfer.ExtractorTestUtilities.countAccountTransfers;
 import static name.abuchen.portfolio.datatransfer.ExtractorTestUtilities.countBuySell;
@@ -33,6 +34,7 @@ import java.util.List;
 
 import org.junit.Test;
 
+import name.abuchen.portfolio.Messages;
 import name.abuchen.portfolio.datatransfer.actions.AssertImportActions;
 import name.abuchen.portfolio.datatransfer.pdf.PDFInputFile;
 import name.abuchen.portfolio.datatransfer.pdf.QuestradePDFExtractor;
@@ -306,6 +308,49 @@ public class QuestradePDFExtractorTest
             hasGrossValue("CAD", 756.40),
             hasTaxes("CAD", 0.00),
             hasFees("CAD", 0.00)
+        )));
+    }
+
+    @Test
+    public void testBuy07()
+    {
+        var extractor = new QuestradePDFExtractor(new Client());
+
+        List<Exception> errors = new ArrayList<>();
+
+        var results = extractor.extract(PDFInputFile.loadTestCase(getClass(), "Buy07.txt"), errors);
+
+        assertThat(errors, empty());
+        assertThat(countSecurities(results), is(1L));
+        assertThat(countBuySell(results), is(1L));
+        assertThat(countAccountTransactions(results), is(0L));
+        assertThat(countAccountTransfers(results), is(0L));
+        assertThat(countItemsWithFailureMessage(results), is(1L));
+        assertThat(results.size(), is(2));
+        new AssertImportActions().check(results, "CAD");
+
+        // check security
+        assertThat(results, hasItem(security(
+            hasIsin(null),
+            hasWkn(null),
+            hasTicker("XEQT.TO"),
+            hasName("ISHARES CORE EQUITY ETF  PORTFOLIO UNITS"),
+            hasCurrencyCode("CAD"))
+        ));
+
+        // check buy sell transaction
+        assertThat(results, hasItem(withFailureMessage(
+            Messages.MsgErrorTransactionTypeNotSupported,
+            purchase(
+                hasDate("2023-09-29"),
+                hasShares(9.0),
+                hasSource("Buy07.txt"),
+                hasNote(null),
+                hasAmount("CAD", 231.24),
+                hasGrossValue("CAD", 231.21),
+                hasTaxes("CAD", 0.00),
+                hasFees("CAD", 0.03)
+            )
         )));
     }
 

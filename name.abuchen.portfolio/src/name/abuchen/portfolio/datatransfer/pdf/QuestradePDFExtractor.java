@@ -2,6 +2,7 @@ package name.abuchen.portfolio.datatransfer.pdf;
 
 import java.util.Locale;
 
+import name.abuchen.portfolio.Messages;
 import name.abuchen.portfolio.datatransfer.ExtractorUtils;
 import name.abuchen.portfolio.datatransfer.pdf.PDFParser.Block;
 import name.abuchen.portfolio.datatransfer.pdf.PDFParser.DocumentType;
@@ -74,11 +75,19 @@ public class QuestradePDFExtractor extends AbstractPDFExtractor
 
     private void addBuySellTransaction()
     {
-        final var type = new DocumentType("04\\. ACTIVITY DETAILS",
-                        documentContext -> documentContext.
-                                        section("currency") //
-                                        .match(".*Combined in (?<currency>[\\w]{3})$") //
-                                        .assign((ctx, v) -> ctx.put("currency", asCurrencyCode(v.get("currency")))));
+        // Detect top-level sections (e.g., 04. ACTIVITY DETAILS)
+        var sectionRange = new Block("\\d{2}\\. .+")
+                    .asRange(section -> section
+                        .attributes("section")
+                        .match(".*(?<section>\\d{2}\\. [A-Z\\s]+[A-Z]).*"));
+        
+        // Detect the base currency via "Combined in ..."
+        var currencyRange = new Block(".*Combined in (?<currency>[\\w]{3})$")
+                    .asRange(section -> section
+                        .attributes("currency")
+                        .match(".*Combined in (?<currency>[\\w]{3})$"));
+                        
+        final var type = new DocumentType("04\\. ACTIVITY DETAILS", sectionRange, currencyRange);
         this.addDocumentTyp(type);
 
         var pdfTransaction = new Transaction<BuySellEntry>();
@@ -101,8 +110,16 @@ public class QuestradePDFExtractor extends AbstractPDFExtractor
             // 01-17-2023 01-19-2023 Buy .XEQT UNITS|WE ACTED AS AGENT|AVG PRICE - ASK 19 25.320 (481.08) - (481.08) - - - -
             // @formatter:on
             .section("date")
+            .documentRange("section")
             .match("^(?<date>[\\d]{2}\\-[\\d]{2}\\-[\\d]{4}) [\\d]{2}\\-[\\d]{2}\\-[\\d]{4} Buy .*")
             .assign((t, v) -> {
+                String section = v.get("section");
+
+                if (section == null || !section.equals("04. ACTIVITY DETAILS"))
+                {
+                    v.getTransactionContext().put(FAILURE, Messages.MsgErrorTransactionTypeNotSupported);
+                }
+
                 t.setDate(asDate(v.get("date"), Locale.US));
             })
 
@@ -114,14 +131,14 @@ public class QuestradePDFExtractor extends AbstractPDFExtractor
                 section -> section
                     .attributes( "tickerSymbol")
                     .match("^.* Buy \\.(?<tickerSymbol>\\S+) UNITS\\|WE ACTED AS AGENT\\|AVG PRICE - ASK .*$")
-                    .documentContext("currency")
+                    .documentRange("currency")
                     .assign((t, v) -> {
                         // The security name cannot be null
                         v.put("name", "");
                         v.put("tickerSymbol", asTickerSymbol(v.get("tickerSymbol")));
 
                         t.setSecurity(getOrCreateSecurity(v));
-                        t.setCurrencyCode(v.get("currency"));
+                        t.setCurrencyCode(asCurrencyCode(v.get("currency")));
                     }),
 
                 // @formatter:off
@@ -132,13 +149,13 @@ public class QuestradePDFExtractor extends AbstractPDFExtractor
                 section -> section
                     .attributes( "tickerSymbol", "name")
                     .match("^.* Buy \\.(?<tickerSymbol>\\S+) (?<name>.*?)$")
-                    .documentContext("currency")
+                    .documentRange("currency")
                     .assign((t, v) -> {
                         v.put("name", v.get("name").trim());
                         v.put("tickerSymbol", asTickerSymbol(v.get("tickerSymbol")));
 
                         t.setSecurity(getOrCreateSecurity(v));
-                        t.setCurrencyCode(v.get("currency"));
+                        t.setCurrencyCode(asCurrencyCode(v.get("currency")));
                     })
             )
 
@@ -162,11 +179,12 @@ public class QuestradePDFExtractor extends AbstractPDFExtractor
                 // Matches lines like:
                 // UNIT|WE ACTED AS AGENT 50.0000 40.930 (2,046.50) (0.10) (2,046.60) - - - -
                 // UNITS  WE ACTED AS AGENT 76 25.960 (1,972.96) (0.27) (1,973.23) - - - -
+                // WE ACTED AS AGENT 9 25.690 (231.21) (0.03) (231.24)
                 // @formatter:on
                 section -> section
                     .attributes("shares", "gross", "fee", "amount")
-                    .documentContext("currency")
-                    .match("^UNITS?(\\||  )WE ACTED AS AGENT (?<shares>[\\d\\.,]+) (?<price>[\\d\\.,]+) \\((?<gross>[\\d,\\.\\-]+)\\) \\((?<fee>[\\d,\\.\\-]+)\\) \\((?<amount>[\\d,\\.\\-]+)\\) .*$")
+                    .documentRange("currency")
+                    .match("^(UNITS?(\\||  ))?WE ACTED AS AGENT (?<shares>[\\d\\.,]+) (?<price>[\\d\\.,]+) \\((?<gross>[\\d,\\.\\-]+)\\) \\((?<fee>[\\d,\\.\\-]+)\\) \\((?<amount>[\\d,\\.\\-]+)\\).*$")
                     .assign((t, v) -> {
                         t.setShares(asShares(v.get("shares"), "en", "CA"));
                         t.setAmount(asAmount(v.get("amount")));
@@ -180,14 +198,21 @@ public class QuestradePDFExtractor extends AbstractPDFExtractor
                 // @formatter:on
                 section -> section
                     .attributes("shares", "gross", "amount")
-                    .match("^.+ UNITS\\|WE ACTED AS AGENT\\|AVG PRICE - ASK (?<shares>[\\d\\.,]+) (?<price>[\\d\\.,]+) \\((?<gross>[\\d,\\.\\-]+)\\) - \\((?<amount>[\\d,\\.\\-]+)\\) .*$")
+                    .match("^.+ UNITS\\|WE ACTED AS AGENT\\|AVG PRICE - ASK (?<shares>[\\d\\.,]+) (?<price>[\\d\\.,]+) \\((?<gross>[\\d,\\.]+)\\) - \\((?<amount>[\\d,\\.]+)\\) .*$")
                     .assign((t, v) -> {
                         t.setShares(asShares(v.get("shares"), "en", "CA"));
                         t.setAmount(asAmount(v.get("amount")));
                     })
             )
 
-            .wrap(BuySellEntryItem::new);
+            .wrap((t, ctx) -> {
+                var item = new BuySellEntryItem(t);
+
+                if (ctx.containsKey(FAILURE))
+                    item.setFailureMessage(ctx.getString(FAILURE));
+
+                return item;
+            });
     }
 
     private void addDividendTransaction()
